@@ -1,0 +1,155 @@
+# Alert rules for x-maqina
+groups:
+  - name: x-maqina.rules
+    interval: 30s
+    rules:
+      # API Health Alerts
+      - alert: HighErrorRate
+        expr: |
+          (sum(rate(xmaqina_errors_total[5m])) / sum(rate(xmaqina_requests_total[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High error rate detected ({{ $value | humanizePercentage }})"
+          description: "Error rate exceeded 5% for 5 minutes"
+
+      - alert: CriticalErrorRate
+        expr: |
+          (sum(rate(xmaqina_errors_total[5m])) / sum(rate(xmaqina_requests_total[5m]))) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Critical error rate detected ({{ $value | humanizePercentage }})"
+          description: "Error rate exceeded 10% for 2 minutes"
+
+      # Latency Alerts
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, rate(xmaqina_request_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High request latency (p95: {{ $value | humanizeDuration }})"
+          description: "Request latency p95 exceeded 1 second for 5 minutes"
+
+      - alert: VeryHighLatency
+        expr: |
+          histogram_quantile(0.99, rate(xmaqina_request_duration_seconds_bucket[5m])) > 5.0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Very high request latency (p99: {{ $value | humanizeDuration }})"
+          description: "Request latency p99 exceeded 5 seconds for 2 minutes"
+
+      # Gemini API Alerts
+      - alert: GeminiAPIErrors
+        expr: |
+          rate(xmaqina_gemini_requests_total{status="error"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: gemini
+        annotations:
+          summary: "Gemini API error rate high ({{ $value | humanize }} errors/sec)"
+          description: "Gemini API errors exceeded 0.1 per second for 5 minutes"
+
+      - alert: HighGeminiLatency
+        expr: |
+          histogram_quantile(0.95, rate(xmaqina_gemini_latency_seconds_bucket[5m])) > 5.0
+        for: 5m
+        labels:
+          severity: warning
+          component: gemini
+        annotations:
+          summary: "High Gemini API latency (p95: {{ $value | humanizeDuration }})"
+          description: "Gemini API latency p95 exceeded 5 seconds for 5 minutes"
+
+      # Cache Performance Alerts
+      - alert: LowCacheHitRate
+        expr: |
+          (rate(xmaqina_cache_hits_total[5m]) / (rate(xmaqina_cache_hits_total[5m]) + rate(xmaqina_cache_misses_total[5m]))) < 0.3
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Low cache hit rate ({{ $value | humanizePercentage }})"
+          description: "Cache hit rate below 30% for 10 minutes"
+
+      - alert: CacheSizeHigh
+        expr: |
+          xmaqina_cache_size_bytes / 1024 / 1024 > 900
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Cache size exceeding threshold ({{ $value | humanize }}MB)"
+          description: "Cache size exceeded 900MB for 5 minutes"
+
+      # System Health Alerts
+      - alert: LowSystemHealth
+        expr: |
+          xmaqina_system_health < 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "System health score low ({{ $value | humanize }})"
+          description: "System health score dropped below 0.5 for 5 minutes"
+
+      - alert: CriticalSystemHealth
+        expr: |
+          xmaqina_system_health < 0.2
+        for: 2m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Critical system health ({{ $value | humanize }})"
+          description: "System health score dropped below 0.2 for 2 minutes"
+
+      # Safety Alerts
+      - alert: SafetyViolationDetected
+        expr: |
+          rate(xmaqina_safety_violations_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: safety
+        annotations:
+          summary: "Safety violations detected ({{ $value | humanize }} per sec)"
+          description: "Content safety violations detected in responses"
+
+      # Database Connection Alerts
+      - alert: HighDatabaseConnections
+        expr: |
+          xmaqina_db_connections > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High database connection count ({{ $value | humanize }})"
+          description: "Database connections exceeded 80 for 5 minutes"
+
+      # Redis Connection Alerts
+      - alert: HighRedisConnections
+        expr: |
+          xmaqina_redis_connections > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "High Redis connection count ({{ $value | humanize }})"
+          description: "Redis connections exceeded 50 for 5 minutes"

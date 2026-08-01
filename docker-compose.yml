@@ -1,47 +1,195 @@
 version: '3.8'
 
 services:
+  # FastAPI Application
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xmaqina-app
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://xmaqina:password@postgres:5432/xmaqina
+      - DATABASE_URL=postgresql://xmaqina:xmaqina_password@postgres:5432/xmaqina
       - REDIS_URL=redis://redis:6379/0
       - WEAVIATE_URL=http://weaviate:8080
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      weaviate:
+        condition: service_started
+    volumes:
+      - .:/app
+    networks:
+      - xmaqina-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # gRPC Server
+  grpc-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xmaqina-grpc
+    ports:
+      - "50051:50051"
+    environment:
+      - DATABASE_URL=postgresql://xmaqina:xmaqina_password@postgres:5432/xmaqina
+      - REDIS_URL=redis://redis:6379/0
+      - WEAVIATE_URL=http://weaviate:8080
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
     depends_on:
       - postgres
       - redis
-      - weaviate
+      - app
     volumes:
       - .:/app
+    networks:
+      - xmaqina-network
+    command: python scripts/run_grpc_server.py
 
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
+    container_name: xmaqina-postgres
     environment:
       - POSTGRES_USER=xmaqina
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=xmaqina_password
       - POSTGRES_DB=xmaqina
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - xmaqina-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U xmaqina"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "shared_buffers=256MB"
 
+  # Redis Cache
   redis:
     image: redis:7-alpine
+    container_name: xmaqina-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - xmaqina-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes --appendfsync everysec
 
+  # Weaviate Vector Database
   weaviate:
     image: semitechnologies/weaviate:latest
+    container_name: xmaqina-weaviate
     ports:
       - "8080:8080"
     environment:
-      - QUERY_DEFAULTS_LIMIT=20
+      - QUERY_DEFAULTS_LIMIT=25
       - AUTHENTICATION_APIKEY_ENABLED=false
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=none
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - xmaqina-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/.well-known/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: xmaqina-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - xmaqina-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana Dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: xmaqina-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_storage:/var/lib/grafana
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - xmaqina-network
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+  weaviate_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_storage:
+    driver: local
+
+networks:
+  xmaqina-network:
+    driver: bridge
