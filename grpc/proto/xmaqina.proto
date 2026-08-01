@@ -1,0 +1,332 @@
+syntax = "proto3";
+
+package xmaqina.v1;
+
+option go_package = "github.com/deepConn/x-maqina/gen/go/xmaqina/v1";
+option java_multiple_files = true;
+option java_package = "com.deepconn.xmaqina.v1";
+
+// Security service for threat analysis and incident response
+service SecurityService {
+  rpc AnalyzeThreat (ThreatAnalysisRequest) returns (ThreatAnalysisResponse);
+  rpc StreamThreatAnalysis (ThreatAnalysisRequest) returns (stream ThreatAnalysisChunk);
+  rpc ScanVulnerabilities (VulnerabilityScanRequest) returns (VulnerabilityScanResponse);
+  rpc IncidentResponse (IncidentRequest) returns (IncidentResponse);
+  rpc GetThreatIntelligence (ThreatIntelligenceRequest) returns (ThreatIntelligenceResponse);
+}
+
+// Financial analysis service
+service FinancialService {
+  rpc AnalyzeMarket (MarketAnalysisRequest) returns (MarketAnalysisResponse);
+  rpc StreamMarketAnalysis (MarketAnalysisRequest) returns (stream MarketAnalysisChunk);
+  rpc OptimizePortfolio (PortfolioRequest) returns (PortfolioOptimizationResponse);
+  rpc AssessRisk (RiskAssessmentRequest) returns (RiskAssessmentResponse);
+}
+
+// System diagnostics service
+service DiagnosticsService {
+  rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
+  rpc GetPerformanceMetrics (MetricsRequest) returns (PerformanceMetricsResponse);
+  rpc DetectAnomalies (AnomalyDetectionRequest) returns (AnomalyDetectionResponse);
+  rpc AnalyzeLogs (LogAnalysisRequest) returns (LogAnalysisResponse);
+}
+
+// Multi-agent reasoning service
+service AgentService {
+  rpc Reason (ReasoningRequest) returns (ReasoningResponse);
+  rpc StreamReasoning (ReasoningRequest) returns (stream ReasoningChunk);
+  rpc Collaborate (CollaborationRequest) returns (CollaborationResponse);
+  rpc GetAgentStatus (AgentStatusRequest) returns (AgentStatusResponse);
+}
+
+// Autonomous decision-making service
+service AutonomousService {
+  rpc MakeDecision (DecisionRequest) returns (DecisionResponse);
+  rpc ExecutePolicy (PolicyExecutionRequest) returns (PolicyExecutionResponse);
+  rpc GetDecisionHistory (DecisionHistoryRequest) returns (DecisionHistoryResponse);
+}
+
+// Messages for SecurityService
+message ThreatAnalysisRequest {
+  string threat_data = 1;
+  string context = 2;
+  string urgency = 3;
+  string additional_context = 4;
+  bool use_streaming = 5;
+}
+
+message ThreatAnalysisResponse {
+  string threat_level = 1;
+  string analysis = 2;
+  repeated string recommendations = 3;
+  float confidence_score = 4;
+  repeated SafetyRating safety_ratings = 5;
+}
+
+message ThreatAnalysisChunk {
+  string text = 1;
+  string finish_reason = 2;
+  repeated SafetyRating safety_ratings = 3;
+  bool is_complete = 4;
+}
+
+message VulnerabilityScanRequest {
+  string target = 1;
+  string scan_type = 2;
+}
+
+message VulnerabilityScanResponse {
+  repeated Vulnerability vulnerabilities = 1;
+  string status = 2;
+}
+
+message Vulnerability {
+  string id = 1;
+  string name = 2;
+  string severity = 3;
+  string description = 4;
+  repeated string remediation = 5;
+}
+
+message IncidentRequest {
+  string incident_type = 1;
+  string description = 2;
+  map<string, string> context = 3;
+}
+
+message IncidentResponse {
+  repeated string response_actions = 1;
+  string status = 2;
+  string incident_id = 3;
+}
+
+message ThreatIntelligenceRequest {
+  string threat_type = 1;
+  string time_period = 2;
+}
+
+message ThreatIntelligenceResponse {
+  repeated Threat threats = 1;
+  string last_updated = 2;
+}
+
+message Threat {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string severity = 4;
+  repeated string indicators = 5;
+}
+
+message SafetyRating {
+  string category = 1;
+  string probability = 2;
+}
+
+// Messages for FinancialService
+message MarketAnalysisRequest {
+  map<string, string> market_data = 1;
+  string timeframe = 2;
+  string analysis_depth = 3;
+  bool use_streaming = 4;
+}
+
+message MarketAnalysisResponse {
+  string trend = 1;
+  string signal = 2;
+  string risk_level = 3;
+  float price_target = 4;
+  float confidence = 5;
+  repeated string technical_indicators = 6;
+}
+
+message MarketAnalysisChunk {
+  string text = 1;
+  string finish_reason = 2;
+  bool is_complete = 3;
+}
+
+message PortfolioRequest {
+  repeated Asset assets = 1;
+  string optimization_goal = 2;
+}
+
+message Asset {
+  string symbol = 1;
+  float quantity = 2;
+  float current_price = 3;
+}
+
+message PortfolioOptimizationResponse {
+  repeated AssetAllocation allocations = 1;
+  float expected_return = 2;
+  float risk_score = 3;
+}
+
+message AssetAllocation {
+  string symbol = 1;
+  float percentage = 2;
+  string rationale = 3;
+}
+
+message RiskAssessmentRequest {
+  string asset = 1;
+  string assessment_type = 2;
+}
+
+message RiskAssessmentResponse {
+  float risk_score = 1;
+  string risk_level = 2;
+  repeated string risk_factors = 3;
+  repeated string mitigation_strategies = 4;
+}
+
+// Messages for DiagnosticsService
+message HealthCheckRequest {
+  map<string, string> system_data = 1;
+  string metrics_type = 2;
+}
+
+message HealthCheckResponse {
+  string health_status = 1;
+  repeated string issues = 2;
+  map<string, float> metric_values = 3;
+}
+
+message MetricsRequest {
+  string time_range = 1;
+  repeated string metric_names = 2;
+}
+
+message PerformanceMetricsResponse {
+  float cpu_usage = 1;
+  float memory_usage = 2;
+  float disk_usage = 3;
+  float latency_ms = 4;
+  float throughput_rps = 5;
+  map<string, float> custom_metrics = 6;
+}
+
+message AnomalyDetectionRequest {
+  map<string, float> metrics = 1;
+  string detection_method = 2;
+}
+
+message AnomalyDetectionResponse {
+  repeated Anomaly anomalies = 1;
+  string status = 2;
+}
+
+message Anomaly {
+  string metric_name = 1;
+  float current_value = 2;
+  float expected_value = 3;
+  float deviation_percent = 4;
+  string severity = 5;
+}
+
+message LogAnalysisRequest {
+  repeated string log_lines = 1;
+  string analysis_type = 2;
+}
+
+message LogAnalysisResponse {
+  repeated LogFinding findings = 1;
+  string summary = 2;
+}
+
+message LogFinding {
+  string pattern = 1;
+  int32 occurrence_count = 2;
+  string severity = 3;
+  string description = 4;
+}
+
+// Messages for AgentService
+message ReasoningRequest {
+  string problem = 1;
+  int32 num_agents = 2;
+  string reasoning_depth = 3;
+  bool use_streaming = 4;
+}
+
+message ReasoningResponse {
+  string solution = 1;
+  float confidence = 2;
+  repeated string reasoning_steps = 3;
+  map<string, string> agent_perspectives = 4;
+}
+
+message ReasoningChunk {
+  string text = 1;
+  int32 agent_index = 2;
+  string finish_reason = 3;
+  bool is_complete = 4;
+}
+
+message CollaborationRequest {
+  string task = 1;
+  repeated string agent_roles = 2;
+}
+
+message CollaborationResponse {
+  repeated string active_agents = 1;
+  string status = 2;
+}
+
+message AgentStatusRequest {}
+
+message AgentStatusResponse {
+  repeated AgentInfo agents = 1;
+  string overall_status = 2;
+}
+
+message AgentInfo {
+  string agent_id = 1;
+  string status = 2;
+  float uptime_hours = 3;
+  int32 tasks_completed = 4;
+}
+
+// Messages for AutonomousService
+message DecisionRequest {
+  string situation = 1;
+  map<string, string> context = 2;
+  repeated string constraints = 3;
+}
+
+message DecisionResponse {
+  string decision = 1;
+  string rationale = 2;
+  float confidence = 3;
+  string fallback_plan = 4;
+}
+
+message PolicyExecutionRequest {
+  string policy_name = 1;
+  map<string, string> parameters = 2;
+}
+
+message PolicyExecutionResponse {
+  string status = 1;
+  repeated string results = 2;
+  string execution_id = 3;
+}
+
+message DecisionHistoryRequest {
+  int32 limit = 1;
+  string time_range = 2;
+}
+
+message DecisionHistoryResponse {
+  repeated Decision decisions = 1;
+  int32 total = 2;
+}
+
+message Decision {
+  string decision_id = 1;
+  string decision = 2;
+  string situation = 3;
+  string timestamp = 4;
+  float confidence = 5;
+}
