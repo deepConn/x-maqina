@@ -5,9 +5,7 @@ from fastapi.responses import StreamingResponse
 
 from app.gemini.copilot import CopilotService
 from app.gemini.advanced_prompts import PromptEngineer
-
-# Import the Gemini adapter
-from app.gemini.adapter import GeminiClientAdapter
+from app.api.auth import get_api_key, get_rate_limiter
 
 router = APIRouter()
 
@@ -25,12 +23,13 @@ class StreamRequest(BaseModel):
 
 
 # Dependency provider for CopilotService. In production we wire the real Gemini adapter.
+from app.gemini.adapter import GeminiClientAdapter
+
+
 def get_copilot_service() -> CopilotService:
-    # Read configuration from environment variables. GEMINI_API_KEY must be set.
     try:
         client = GeminiClientAdapter()
     except Exception:
-        # Fall back to the MVP mock client if the adapter can't be created
         from .copilot import _MockGeminiClient as _LocalMock
 
         client = _LocalMock()
@@ -39,7 +38,17 @@ def get_copilot_service() -> CopilotService:
 
 
 @router.post("/query")
-async def copilot_query(req: QueryRequest, svc: CopilotService = Depends(get_copilot_service)):
+async def copilot_query(
+    req: QueryRequest,
+    svc: CopilotService = Depends(get_copilot_service),
+    api_key: str = Depends(get_api_key),
+    rate_limiter=Depends(get_rate_limiter),
+):
+    # Rate limit check
+    allowed = await rate_limiter.is_allowed(api_key)
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
     # Build prompt based on mode
     mode = req.mode.lower()
     if mode == "market":
@@ -57,7 +66,16 @@ async def copilot_query(req: QueryRequest, svc: CopilotService = Depends(get_cop
 
 
 @router.post("/stream")
-async def copilot_stream(req: StreamRequest, svc: CopilotService = Depends(get_copilot_service)):
+async def copilot_stream(
+    req: StreamRequest,
+    svc: CopilotService = Depends(get_copilot_service),
+    api_key: str = Depends(get_api_key),
+    rate_limiter=Depends(get_rate_limiter),
+):
+    allowed = await rate_limiter.is_allowed(api_key)
+    if not allowed:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
     mode = req.mode.lower()
     if mode == "market":
         prompt = PromptEngineer.get_market_analysis_prompt(req.data, timeframe=req.data.get("timeframe", "1h"), use_cot=req.use_cot)
