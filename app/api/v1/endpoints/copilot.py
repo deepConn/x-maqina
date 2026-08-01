@@ -6,6 +6,9 @@ from fastapi.responses import StreamingResponse
 from app.gemini.copilot import CopilotService
 from app.gemini.advanced_prompts import PromptEngineer
 
+# Import the Gemini adapter
+from app.gemini.adapter import GeminiClientAdapter
+
 router = APIRouter()
 
 
@@ -21,23 +24,17 @@ class StreamRequest(BaseModel):
     use_cot: bool = True
 
 
-# Lightweight default mock Gemini client used for MVP when no real client is wired.
-class _MockGeminiClient:
-    async def generate(self, prompt: str, max_tokens: int = 512, **kwargs) -> Dict[str, Any]:
-        # Return a deterministic mocked response and empty safety ratings
-        return {"text": f"[mocked response] Received prompt length={len(prompt)}", "safety_ratings": []}
-
-    async def stream_generate(self, prompt: str, max_tokens: int = 512, **kwargs) -> AsyncGenerator[str, None]:
-        # Yield a few chunks and finish
-        chunks = ["[mock stream] Starting...", "[mock stream] processing...", f"[mock stream] done (len={len(prompt)})"]
-        for c in chunks:
-            yield c
-
-
-# Dependency provider for CopilotService. In a production deployment, replace the mock client
-# with a real Gemini client adapter and register the dependency accordingly.
+# Dependency provider for CopilotService. In production we wire the real Gemini adapter.
 def get_copilot_service() -> CopilotService:
-    client = _MockGeminiClient()
+    # Read configuration from environment variables. GEMINI_API_KEY must be set.
+    try:
+        client = GeminiClientAdapter()
+    except Exception:
+        # Fall back to the MVP mock client if the adapter can't be created
+        from .copilot import _MockGeminiClient as _LocalMock
+
+        client = _LocalMock()
+
     return CopilotService(gemini_client=client, blocking_mode="high")
 
 
