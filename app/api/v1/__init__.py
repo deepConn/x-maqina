@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import autonomous, diagnostics, financial, security, agents
+from app.api.v1.endpoints import copilot
 
 router = APIRouter()
 
@@ -12,3 +13,6 @@ router.include_router(financial.router, prefix="/financial", tags=["Financial"])
 router.include_router(diagnostics.router, prefix="/diagnostics", tags=["Diagnostics"])
 router.include_router(agents.router, prefix="/agents", tags=["Multi-Agent"])
 router.include_router(autonomous.router, prefix="/autonomous", tags=["Autonomous"])
+
+# Copilot router
+router.include_router(copilot.router, prefix="/copilot", tags=["Copilot"]) 
